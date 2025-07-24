@@ -1,0 +1,116 @@
+services:
+  wss:
+    image: opengpunetwork/provider-app_wss:latest
+    container_name: provider-app__wss-module
+    restart: unless-stopped
+    env_file: .env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks: [provider-app-internal-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+      docker:
+        condition: service_healthy
+
+  docker:
+    image: opengpunetwork/provider-app_docker:latest
+    container_name: provider-app__docker-module
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - YML_PATH=/data/ymls
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yml_data:/data/ymls
+    networks: [provider-app-internal-net]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  
+    healthcheck:
+      test: ["CMD", "sh", "-c", "docker info >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  executor:
+    image: opengpunetwork/provider-app_executor:latest
+    container_name: provider-app__executor-module
+    restart: unless-stopped
+    env_file: .env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks: 
+      - provider-app-internal-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  callback:
+    image: opengpunetwork/provider-app_callback:latest
+    container_name: provider-app__callback-module
+    restart: unless-stopped
+    env_file: .env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks: [provider-app-internal-net]
+    ports:
+      - "20000:20000"
+
+  sentinel:
+    image: opengpunetwork/provider-app_sentinel:latest
+    container_name: provider-app__sentinel-module
+    restart: unless-stopped
+    env_file: .env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yml_data:/data/ymls
+    networks: [provider-app-internal-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+      docker:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.2
+    container_name: provider-app__redis-service
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks: [provider-app-internal-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: provider-app__watchtower-service
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30 --cleanup --label-enable --include-restarting
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_REVIVE_STOPPED=false
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_ROLLING_RESTART=true
+    networks: [provider-app-internal-net]
+
+volumes:
+  redis_data:
+    driver: local
+  yml_data:
+    driver: local
+
+networks:
+  provider-app-internal-net:
+    driver: bridge
