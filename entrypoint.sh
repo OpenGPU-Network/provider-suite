@@ -35,7 +35,7 @@ compose() {
 
 # Graceful shutdown
 cleanup() {
-  echo "[entrypoint] Stopping `provider-app` ..."
+  echo "[entrypoint] Stopping provider-app ..."
   # Use absolute -f path; no reliance on current directory
   compose -f "$COMPOSE_FILE_PATH" stop || true
   kill -SIGTERM "$DOCKERD_PID" || true
@@ -59,9 +59,9 @@ done
 COMPOSE_DIR="$(dirname "$COMPOSE_FILE_PATH")"
 COMPOSE_FILE_BASENAME="$(basename "$COMPOSE_FILE_PATH")"
 cd "$COMPOSE_DIR"
-echo "[entrypoint] Launching `provider-app` ..."
+echo "[entrypoint] Launching provider-app ..."
 compose -f "$COMPOSE_FILE_BASENAME" $EXTRA_COMPOSE_ARGS up -d
 
 # Keep PID1 alive
-echo "[entrypoint] `provider-app` is running. PID1 is dockerd ($DOCKERD_PID)."
+echo "[entrypoint] provider-app is running. PID1 is dockerd ($DOCKERD_PID)."
 wait "$DOCKERD_PID"
