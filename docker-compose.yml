@@ -1,9 +1,10 @@
+name: opengpu-network__provider-app
+
 services:
   wss:
     image: opengpunetwork/provider-app_wss:latest
     container_name: provider-app__wss-module
     restart: unless-stopped
-    env_file: .env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks: [provider-app-internal-net]
@@ -12,14 +13,18 @@ services:
         condition: service_healthy
       docker:
         condition: service_healthy
+    environment:
+      - PROVIDER_PRIVATE_KEY=${PROVIDER_PRIVATE_KEY}
+      - MASTER_ADDRESS=${MASTER_ADDRESS}
 
   docker:
     image: opengpunetwork/provider-app_docker:latest
     container_name: provider-app__docker-module
     restart: unless-stopped
-    env_file: .env
     environment:
       - YML_PATH=/data/ymls
+      - PROVIDER_PRIVATE_KEY=${PROVIDER_PRIVATE_KEY}
+      - MASTER_ADDRESS=${MASTER_ADDRESS}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     volumes:
@@ -27,7 +32,7 @@ services:
       - yml_data:/data/ymls
     networks: [provider-app-internal-net]
     extra_hosts:
-      - "host.docker.internal:host-gateway"  
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "sh", "-c", "docker info >/dev/null 2>&1"]
       interval: 10s
@@ -39,30 +44,32 @@ services:
     image: opengpunetwork/provider-app_executor:latest
     container_name: provider-app__executor-module
     restart: unless-stopped
-    env_file: .env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    networks: 
-      - provider-app-internal-net
+    networks: [provider-app-internal-net]
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      - PROVIDER_PRIVATE_KEY=${PROVIDER_PRIVATE_KEY}
+      - MASTER_ADDRESS=${MASTER_ADDRESS}
 
   callback:
     image: opengpunetwork/provider-app_callback:latest
     container_name: provider-app__callback-module
     restart: unless-stopped
-    env_file: .env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks: [provider-app-internal-net]
     ports:
       - "20000:20000"
+    environment:
+      - PROVIDER_PRIVATE_KEY=${PROVIDER_PRIVATE_KEY}
+      - MASTER_ADDRESS=${MASTER_ADDRESS}
 
   sentinel:
     image: opengpunetwork/provider-app_sentinel:latest
     container_name: provider-app__sentinel-module
     restart: unless-stopped
-    env_file: .env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     volumes:
@@ -74,6 +81,9 @@ services:
         condition: service_healthy
       docker:
         condition: service_healthy
+    environment:
+      - PROVIDER_PRIVATE_KEY=${PROVIDER_PRIVATE_KEY}
+      - MASTER_ADDRESS=${MASTER_ADDRESS}
 
   redis:
     image: redis:7.2

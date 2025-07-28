@@ -1,0 +1,12 @@
+FROM cgr.dev/chainguard/docker-dind:latest-dev
+
+ENV DOCKER_TLS_CERTDIR="" \
+    STORAGE_DRIVER=vfs \
+    COMPOSE_FILE_PATH=/app/docker-compose.yml
+
+WORKDIR /app
+COPY docker-compose.yml /app/docker-compose.yml
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

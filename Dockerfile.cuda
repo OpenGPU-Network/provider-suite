@@ -1,0 +1,25 @@
+FROM cgr.dev/chainguard/docker-dind:latest-dev
+
+# --- NVIDIA Container Toolkit ---
+RUN apk update && apk add --no-cache \
+      nvidia-container-toolkit \
+      nvidia-container-toolkit-nvidia-ctk \
+      nvidia-container-toolkit-nvidia-container-runtime \
+      nvidia-container-toolkit-nvidia-container-runtime-hook
+
+# Register NVIDIA as a Docker runtime inside the inner dockerd
+RUN nvidia-ctk runtime configure --runtime=docker
+
+# --- Runner settings ---
+ENV DOCKER_TLS_CERTDIR="" \
+    DOCKER_HOST=unix:///var/run/docker.sock \
+    STORAGE_DRIVER=vfs \
+    COMPOSE_FILE_PATH=/app/docker-compose.yml
+
+WORKDIR /app
+COPY docker-compose.yml /app/docker-compose.yml
+
+# Your entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
