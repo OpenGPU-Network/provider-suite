@@ -11,47 +11,34 @@ BUILD_FLAGS ?= --no-cache --pull
 
 DOCKER ?= docker
 
-# ---- phony targets ------------------------------------------------
-.PHONY: all build-all push-all \
-        build-cpu build-rocm build-cuda \
-        push-cpu  push-rocm  push-cuda \
-        login clean publish
+# ---- multi-arch buildx config -------------------------------------
+PLATFORMS ?= linux/amd64,linux/arm64
+BUILDX ?= $(DOCKER) buildx
 
-# default = build everything
-all: build-all
 
-# ---- build --------------------------------------------------------
+.PHONY: build-all build-cpu build-rocm build-cuda publish-all publish-cpu publish-rocm publish-cuda publish
+
+# ---- multi-arch build targets ------------------------------------
 build-all: build-cpu build-rocm build-cuda
 
 build-cpu:
-	$(DOCKER) build $(BUILD_FLAGS) -f $(CPU_DOCKERFILE)  -t $(IMAGE_REPO):cpu  $(CONTEXT)
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(CPU_DOCKERFILE) -t $(IMAGE_REPO):cpu $(CONTEXT) --load
 
 build-rocm:
-	$(DOCKER) build $(BUILD_FLAGS) -f $(ROCM_DOCKERFILE) -t $(IMAGE_REPO):rocm $(CONTEXT)
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(ROCM_DOCKERFILE) -t $(IMAGE_REPO):rocm $(CONTEXT) --load
 
 build-cuda:
-	$(DOCKER) build $(BUILD_FLAGS) -f $(CUDA_DOCKERFILE) -t $(IMAGE_REPO):cuda $(CONTEXT)
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(CUDA_DOCKERFILE) -t $(IMAGE_REPO):cuda $(CONTEXT) --load
 
-# ---- push ---------------------------------------------------------
-push-all: push-cpu push-rocm push-cuda
+# ---- multi-arch build+push (publish) targets ----------------------
+publish-all: publish-cpu publish-rocm publish-cuda
 
-push-cpu:
-	$(DOCKER) push $(IMAGE_REPO):cpu
+publish-cpu:
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(CPU_DOCKERFILE) -t $(IMAGE_REPO):cpu $(CONTEXT) --push
 
-push-rocm:
-	$(DOCKER) push $(IMAGE_REPO):rocm
+publish-rocm:
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(ROCM_DOCKERFILE) -t $(IMAGE_REPO):rocm $(CONTEXT) --push
 
-push-cuda:
-	$(DOCKER) push $(IMAGE_REPO):cuda
+publish-cuda:
+	$(BUILDX) build $(BUILD_FLAGS) --platform $(PLATFORMS) -f $(CUDA_DOCKERFILE) -t $(IMAGE_REPO):cuda $(CONTEXT) --push
 
-# ---- misc ---------------------------------------------------------
-login:
-	$(DOCKER) login
-
-clean:
-	-$(DOCKER) rmi $(IMAGE_REPO):cpu $(IMAGE_REPO):rocm $(IMAGE_REPO):cuda || true
-
-# ---- one-shot build + push for all images -------------------------
-publish:
-	@$(MAKE) build-all
-	@$(MAKE) push-all
